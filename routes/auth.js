@@ -16,6 +16,7 @@
 
 const sha1 = require("sha1");
 const config = require("../config");
+const reply = require("../wechat/reply");
 const template = require("../wechat/template");
 const {
   getUserDataAsync,
@@ -45,16 +46,11 @@ module.exports = () => {
         const xmlData = await getUserDataAsync(req);
         const jsData = await parseXMLAsync(xmlData);
         const message = await formateMessage(jsData);
-
-        let options = {
-          toUserName: message.FromUserName,
-          fromUserName: message.ToUserName,
-          createTime: Date.now(),
-          msgType: message.MsgType,
-        };
-        console.log(message);
+        const options = reply(message);
+        const answer = template(options);
+        console.log(answer);
         // 如果开发者服务器没有响应微信服务器，微信会发送3次请求过来
-        res.end("");
+        res.send(answer);
       }
     } catch (error) {
       res.end("err");
