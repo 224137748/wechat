@@ -1,5 +1,3 @@
-const sha1 = require("sha1");
-const config = require("../config");
 // signature=0eaa5ead55cb026f2ad741fb07d541c7aae97490 签名
 // echostr=662267024130439964 微信随机字符串
 // timestamp=1597930008 微信发送请求时间戳
@@ -16,17 +14,47 @@ const config = require("../config");
 
 /* 用这种方式可以通过函数向中间件传递参数 */
 
+const sha1 = require("sha1");
+const config = require("../config");
+const template = require("../wechat/template");
+const {
+  getUserDataAsync,
+  parseXMLAsync,
+  formateMessage,
+} = require("../utils/tools");
+
 module.exports = () => {
-  return function (req, res, next) {
+  return async (req, res, next) => {
     try {
       const { signature, timestamp, echostr, nonce } = req.query;
       const { token } = config;
+
       const arr = [timestamp, nonce, token].sort();
       const sha1_str = sha1(arr.join(""));
-      if (sha1_str === signature) {
-        res.send(echostr);
-      } else {
-        res.end("err");
+
+      if (req.method === "GET") {
+        // get 请求微信一般用于验证服务器
+        if (sha1_str === signature) {
+          res.send(echostr);
+        } else {
+          res.end("err");
+        }
+      } else if (req.method === "POST") {
+        if (sha1_str !== signature) res.end("end");
+
+        const xmlData = await getUserDataAsync(req);
+        const jsData = await parseXMLAsync(xmlData);
+        const message = await formateMessage(jsData);
+
+        let options = {
+          toUserName: message.FromUserName,
+          fromUserName: message.ToUserName,
+          createTime: Date.now(),
+          msgType: message.MsgType,
+        };
+        console.log(message);
+        // 如果开发者服务器没有响应微信服务器，微信会发送3次请求过来
+        res.end("");
       }
     } catch (error) {
       res.end("err");

@@ -13,8 +13,10 @@
       - 先去本地读取文件，判断access_token是否过期
       - 如果没有过期直接使用，否则请求最新的token，并更新文件
 */
+const fs = require("fs");
 const { appID, appsecret } = require("../config");
 const axios = require("axios");
+const { resolve } = require("path");
 class Wechat {
   constructor() {}
 
@@ -39,7 +41,96 @@ class Wechat {
       }
     });
   }
+
+  /**
+   *保存access_token
+   * @param {*} accessToken
+   * @memberof Wechat
+   */
+  saveAccessToken(accessToken) {
+    return new Promise((resolve, reject) => {
+      fs.writeFile("./accessToken.txt", JSON.stringify(accessToken), (err) => {
+        if (!err) {
+          resolve();
+        } else {
+          reject(`保存文件出错： ${err}`);
+        }
+      });
+    });
+  }
+
+  /**
+   *读取本地token
+   *
+   * @memberof Wechat
+   */
+  readAccessToken() {
+    return new Promise((resolve, reject) => {
+      fs.readFile("./accessToken.txt", (err, res) => {
+        if (!err) {
+          try {
+            const data = JSON.parse(res);
+            resolve(data);
+          } catch (error) {
+            reject("读取文件失败： " + error);
+          }
+        } else {
+          reject("读取文件失败： " + err);
+        }
+      });
+    });
+  }
+
+  /**
+   *检验token是否是有效的，根据时间判断
+   *
+   * @memberof Wechat
+   */
+  isValidAccessToken(data) {
+    if (!data && !data.accessToken && !data.expires_in) return false;
+
+    return data.expires_in > Date.now();
+  }
+
+  /**
+   *获取access_token
+   *
+   * @returns {Promise<string>}
+   * @memberof Wechat
+   */
+  fetchAccessToken() {
+    // 先判断内存中是否缓存
+    if (this.accessToken && this.expires_in && this.isValidAccessToken(this)) {
+      return Promise.resolve({
+        accessToken: this.accessToken,
+        expires_in: this.expires_in,
+      });
+    }
+
+    return this.readAccessToken()
+      .then(async (res) => {
+        // 判断是否有效
+        if (this.isValidAccessToken(res)) {
+          return Promise.resolve(res);
+        } else {
+          const data = await this.getAccessToken();
+          this.saveAccessToken(data);
+          // 返回一个Promise 方便最外一层调用then，
+          return Promise.resolve(data);
+        }
+      })
+      .catch(async (err) => {
+        const data = await this.getAccessToken();
+        this.saveAccessToken(data);
+        return Promise.resolve(data);
+      })
+      .then((res) => {
+        this.accessToken = res.accessToken;
+        this.expires_in = res.expires_in;
+        return Promise.resolve(res);
+      });
+  }
 }
 
 const wechat = new Wechat();
-wechat.getAccessToken();
+wechat.fetchAccessToken();
