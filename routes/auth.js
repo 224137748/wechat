@@ -14,47 +14,56 @@
 
 /* 用这种方式可以通过函数向中间件传递参数 */
 
-const sha1 = require("sha1");
-const config = require("../config");
-const reply = require("../wechat/reply");
-const template = require("../wechat/template");
+const sha1 = require('sha1')
+const config = require('../config')
+const reply = require('../wechat/reply')
+const template = require('../wechat/template')
 const {
   getUserDataAsync,
   parseXMLAsync,
   formateMessage,
-} = require("../utils/tools");
+} = require('../utils/tools')
 
 module.exports = () => {
   return async (req, res, next) => {
     try {
-      const { signature, timestamp, echostr, nonce } = req.query;
-      const { token } = config;
+      const { signature, timestamp, echostr, nonce } = req.query
+      const { token } = config
 
-      const arr = [timestamp, nonce, token].sort();
-      const sha1_str = sha1(arr.join(""));
+      const arr = [timestamp, nonce, token].sort()
+      const sha1_str = sha1(arr.join(''))
 
-      if (req.method === "GET") {
+      if (req.method === 'GET') {
         // get 请求微信一般用于验证服务器
         if (sha1_str === signature) {
-          res.send(echostr);
+          res.send(echostr)
         } else {
-          res.end("err");
+          res.end('err')
         }
-      } else if (req.method === "POST") {
-        if (sha1_str !== signature) res.end("end");
+      } else if (req.method === 'POST') {
+        if (sha1_str !== signature) res.end('end')
 
-        const xmlData = await getUserDataAsync(req);
-        const jsData = await parseXMLAsync(xmlData);
-        const message = await formateMessage(jsData);
-        const options = reply(message);
-        const answer = template(options);
-        console.log(answer);
+        /* 处理data数据流 */
+        const xmlData = await getUserDataAsync(req)
+
+        /* 解析xml */
+        const jsData = await parseXMLAsync(xmlData)
+
+        /* 格式化 data json */
+        const message = formateMessage(jsData)
+
+        /* 回复规则 */
+        const options = reply(message)
+
+        /* 处理回复消息模板 */
+        const answer = template(options)
+
+        console.log('answer_template', answer)
         // 如果开发者服务器没有响应微信服务器，微信会发送3次请求过来
-        res.send(answer);
+        res.send(answer)
       }
     } catch (error) {
-      res.end("err");
-      console.log(error);
+      res.end('err')
     }
-  };
-};
+  }
+}
