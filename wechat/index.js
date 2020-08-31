@@ -13,13 +13,27 @@
       - 先去本地读取文件，判断access_token是否过期
       - 如果没有过期直接使用，否则请求最新的token，并更新文件
 */
-const fs = require("fs");
-const { appID, appsecret } = require("../config");
-const path = require("path");
-const axios = require("axios");
-const qs = require("qs");
-const menu = require("../config/menu");
-const api = require("../config/api");
+const fs = require('fs')
+const { appID, appsecret } = require('../config')
+const path = require('path')
+const axios = require('axios')
+const qs = require('qs')
+const menu = require('../config/menu')
+const api = require('../config/api')
+const {
+  writeFileAsync,
+  readFileAsync,
+  isValidProperty,
+} = require('../utils/tools')
+
+/**
+ * 定义存储token的文件
+ */
+const tokenFilePath = path.resolve(__dirname, './accessToken.txt')
+/**
+ * 定义存储ticket的文件
+ */
+const ticketFilePath = path.resolve(__dirname, './ticket.txt')
 
 class Wechat {
   constructor() {}
@@ -34,75 +48,21 @@ class Wechat {
         const res = await axios({
           url: api.getAccessToken,
           params: {
-            grant_type: "client_credential",
+            grant_type: 'client_credential',
             appid: appID,
             secret: appsecret,
           },
-        });
-        const tokenInfo = res.data;
+        })
+        const tokenInfo = res.data
         tokenInfo.expires_in =
-          Date.now() + (tokenInfo.expires_in - 5 * 60) * 1000;
-        console.log("tokenInfo ===>", tokenInfo);
-        resolve(tokenInfo);
+          Date.now() + (tokenInfo.expires_in - 5 * 60) * 1000
+        console.log('tokenInfo ===>', tokenInfo)
+        resolve(tokenInfo)
       } catch (err) {
-        console.log(err);
-        reject(err);
+        console.log(err)
+        reject(err)
       }
-    });
-  }
-
-  /**
-   *保存access_token
-   * @param {*} access_token
-   * @memberof Wechat
-   */
-  saveAccessToken(tokenInfo) {
-    return new Promise((resolve, reject) => {
-      fs.writeFile(
-        path.resolve(__dirname, "./accessToken.txt"),
-        JSON.stringify(tokenInfo),
-        (err) => {
-          if (!err) {
-            resolve();
-          } else {
-            reject(`保存文件出错： ${err}`);
-          }
-        }
-      );
-    });
-  }
-
-  /**
-   *读取本地token
-   *
-   * @memberof Wechat
-   */
-  readAccessToken() {
-    return new Promise((resolve, reject) => {
-      fs.readFile("./accessToken.txt", (err, res) => {
-        if (!err) {
-          try {
-            const data = JSON.parse(res);
-            resolve(data);
-          } catch (error) {
-            reject("读取accessToken文件失败： " + error);
-          }
-        } else {
-          reject("读取accessToken文件失败： " + err);
-        }
-      });
-    });
-  }
-
-  /**
-   *检验token是否是有效的，根据时间判断
-   *
-   * @memberof Wechat
-   */
-  isValidAccessToken(data) {
-    if (!data && !data.access_token && !data.expires_in) return false;
-
-    return data.expires_in > Date.now();
+    })
   }
 
   /**
@@ -113,38 +73,43 @@ class Wechat {
    */
   fetchAccessToken() {
     // 先判断内存中是否缓存
-    if (this.access_token && this.expires_in && this.isValidAccessToken(this)) {
+    if (
+      this.access_token &&
+      this.expires_in &&
+      isValidProperty(this, 'access_token')
+    ) {
       return Promise.resolve({
         access_token: this.access_token,
         expires_in: this.expires_in,
-      });
+      })
     }
 
-    return this.readAccessToken()
+    return readFileAsync(tokenFilePath)
       .then(async (res) => {
         // 判断是否有效
-        if (this.isValidAccessToken(res)) {
-          const { access_token, expires_in } = res;
-          this.access_token = access_token;
-          this.expires_in = expires_in;
-          return Promise.resolve(res);
+        if (isValidProperty(res, 'access_token')) {
+          const { access_token, expires_in } = res
+          this.access_token = access_token
+          this.expires_in = expires_in
+          return Promise.resolve(res)
         } else {
-          const data = await this.getAccessToken();
-          this.saveAccessToken(data);
+          const data = await this.getAccessToken()
+
+          writeFileAsync(tokenFilePath, data)
           // 返回一个Promise 方便最外一层调用then，
-          return Promise.resolve(data);
+          return Promise.resolve(data)
         }
       })
       .catch(async (err) => {
-        const data = await this.getAccessToken();
-        this.saveAccessToken(data);
-        return Promise.resolve(data);
+        const data = await this.getAccessToken()
+        writeFileAsync(tokenFilePath, data)
+        return Promise.resolve(data)
       })
       .then((res) => {
-        this.access_token = res.access_token;
-        this.expires_in = res.expires_in;
-        return Promise.resolve(res);
-      });
+        this.access_token = res.access_token
+        this.expires_in = res.expires_in
+        return Promise.resolve(res)
+      })
   }
 
   /**
@@ -152,27 +117,27 @@ class Wechat {
    */
   createMenu() {
     return new Promise(async (resolve, reject) => {
-      const data = await this.fetchAccessToken();
-      if (!data.access_token) return;
-      const url = `${api.createMenu}?access_token=${data.access_token}`;
-      const meunStr = qs.stringify(menu);
+      const data = await this.fetchAccessToken()
+      if (!data.access_token) return
+      const url = `${api.createMenu}?access_token=${data.access_token}`
+      const meunStr = qs.stringify(menu)
       try {
         const res = await axios({
           url,
-          method: "post",
+          method: 'post',
           data: menu,
-        });
-        console.log(res.data);
+        })
+        console.log(res.data)
         if (res.errcode === 0) {
-          resolve(res);
+          resolve(res)
         } else {
-          reject(res);
+          reject(res)
         }
       } catch (err) {
-        console.log(err);
-        reject(err);
+        console.log(err)
+        reject(err)
       }
-    });
+    })
   }
 
   /**
@@ -184,22 +149,22 @@ class Wechat {
   deleteMenu() {
     return new Promise(async (resolve, reject) => {
       try {
-        const data = await this.fetchAccessToken();
-        const url = `${api.deleteMenu}?access_token=${data.access_token}`;
+        const data = await this.fetchAccessToken()
+        const url = `${api.deleteMenu}?access_token=${data.access_token}`
         const res = await axios({
           url,
-          method: "get",
-        });
-        console.log("res", res.data);
+          method: 'get',
+        })
+        console.log('res', res.data)
         if (res.data.errcode === 0) {
-          resolve();
+          resolve()
         } else {
-          reject();
+          reject()
         }
       } catch (error) {
-        reject(error);
+        reject(error)
       }
-    });
+    })
   }
 
   /**
@@ -211,88 +176,29 @@ class Wechat {
   getTicket() {
     return new Promise(async (resolve, reject) => {
       try {
-        const data = await this.fetchAccessToken();
-        if (!data.access_token) return;
+        const data = await this.fetchAccessToken()
+        if (!data.access_token) return
 
         const res = await axios({
           url: api.getTicket,
-          method: "get",
+          method: 'get',
           params: {
-            type: "jsapi",
+            type: 'jsapi',
             access_token: data.access_token,
           },
-        });
+        })
         if (res.data.errcode === 0) {
           // console.log("res", res.data);
-          let { ticket, expires_in } = res.data;
-          expires_in = Date.now() + (expires_in - 5 * 60) * 1000;
-          resolve({ ticket, expires_in });
+          let { ticket, expires_in } = res.data
+          expires_in = Date.now() + (expires_in - 5 * 60) * 1000
+          resolve({ ticket, expires_in })
         } else {
-          reject(res.data);
+          reject(res.data)
         }
       } catch (error) {
-        reject(error);
+        reject(error)
       }
-    });
-  }
-
-  /**
-   *保存ticket
-   *
-   * @param {*} ticketINfo
-   * @memberof Wechat
-   */
-  saveTicket(ticketInfo) {
-    return new Promise(async (resolve, reject) => {
-      fs.writeFile(
-        path.resolve(__dirname, "./ticket.txt"),
-        JSON.stringify(ticketInfo),
-        (err) => {
-          if (!err) {
-            resolve();
-          } else {
-            reject(`保存文件出错： ${err}`);
-          }
-        }
-      );
-    });
-  }
-
-  /**
-   *读取本地ticket
-   *
-   * @memberof Wechat
-   */
-  readTicket() {
-    return new Promise((resolve, reject) => {
-      fs.readFile("./ticket.txt", (err, res) => {
-        if (!err) {
-          try {
-            const data = JSON.parse(res);
-            console.log("read_file", data);
-            resolve(data);
-          } catch (error) {
-            reject("读取ticket.txt文件失败：" + error);
-          }
-        } else {
-          reject("读取ticket.txt文件失败：" + err);
-        }
-      });
-    });
-  }
-
-  /**
-   *检验ticket是否是有效的
-   *
-   * @param {*} data
-   * @returns
-   * @memberof Wechat
-   */
-  isValidTicket(data) {
-    if (!data && !data.ticket && !data.expires_in) {
-      return false;
-    }
-    return data.expires_in > Date.now();
+    })
   }
 
   /**
@@ -303,34 +209,44 @@ class Wechat {
    */
   fetchTicket() {
     // 先判断内存中是否有缓存
-    const ticketInfo = this.ticketInfo;
-    if (ticketInfo && ticketInfo.expires_in && this.isValidTicket(ticketInfo)) {
-      return Promise.resolve(ticketInfo);
+    const ticketInfo = this.ticketInfo
+    if (
+      ticketInfo &&
+      ticketInfo.expires_in &&
+      isValidProperty(ticketInfo, 'ticket')
+    ) {
+      return Promise.resolve(ticketInfo)
     }
-    return this.readTicket()
+    return readFileAsync(ticketFilePath)
       .then(async (res) => {
-        if (this.isValidTicket(res)) {
-          return Promise.resolve(res);
+        if (isValidProperty(res, 'ticket')) {
+          return Promise.resolve(res)
         } else {
-          const data = await this.getTicket();
-          console.log("getTickData ==> ", data);
-          this.saveTicket(data);
-          return Promise.resolve(data);
+          const data = await this.getTicket()
+          console.log('getTickData ==> ', data)
+          writeFileAsync(ticketFilePath, data)
+          return Promise.resolve(data)
         }
       })
       .catch(async (err) => {
-        const data = await this.getTicket();
-        this.saveTicket(data);
-        return Promise.resolve(data);
+        const data = await this.getTicket()
+        writeFileAsync(ticketFilePath, data)
+
+        return Promise.resolve(data)
       })
       .then((res) => {
-        this.ticketInfo = res;
-        return Promise.resolve(res);
-      });
+        this.ticketInfo = res
+        return Promise.resolve(res)
+      })
   }
 }
 
-const wechat = new Wechat();
-wechat.fetchTicket();
+const wechat = new Wechat()
+wechat.fetchAccessToken().then((res) => {
+  console.log(res)
+})
+wechat.fetchTicket().then((res) => {
+  console.log(res)
+})
 
-module.exports = wechat;
+module.exports = wechat
