@@ -13,13 +13,13 @@
       - 先去本地读取文件，判断access_token是否过期
       - 如果没有过期直接使用，否则请求最新的token，并更新文件
 */
-const fs = require('fs')
-const { appID, appsecret } = require('../config')
+const { appID, appsecret, jsApiList } = require('../config')
 const path = require('path')
 const axios = require('axios')
 const qs = require('qs')
 const menu = require('../config/menu')
 const api = require('../config/api')
+const sha1 = require('sha1')
 const {
   writeFileAsync,
   readFileAsync,
@@ -35,6 +35,9 @@ const tokenFilePath = path.resolve(__dirname, './accessToken.txt')
  */
 const ticketFilePath = path.resolve(__dirname, './ticket.txt')
 
+/**
+ * 微信授权，凭据相关操作
+ */
 class Wechat {
   constructor() {}
 
@@ -239,14 +242,42 @@ class Wechat {
         return Promise.resolve(res)
       })
   }
+
+  /**
+   * 获取js-sdk配置config
+   * @param {*} reqPath 获取js_sdk的web地址
+   */
+  getJsSdkConfig(reqPath) {
+    return new Promise(async (resolve, reject) => {
+      try {
+        const { ticket } = await this.fetchTicket()
+        const noncestr = Math.random().toString().substring(2)
+        const timestamp = Date.now()
+
+        // 参与签名的4个参数，jsapi_ticket（临时票据）、noncestr（随机字符串）、timestamp（时间戳）、url（当前服务器地址）
+        const arr = [
+          `jsapi_ticket=${ticket}`,
+          `noncestr=${noncestr}`,
+          `timestamp=${timestamp}`,
+          `url=${reqPath}`,
+        ]
+
+        // 字典排序
+        const paramsStr = arr.sort().join('&')
+        // console.log(paramsStr)
+        const signature = sha1(paramsStr)
+        resolve({
+          appId: appID,
+          timestamp: timestamp,
+          nonceStr: noncestr,
+          signature: signature,
+          jsApiList: jsApiList,
+        })
+      } catch (err) {
+        reject(err)
+      }
+    })
+  }
 }
 
-const wechat = new Wechat()
-wechat.fetchAccessToken().then((res) => {
-  console.log(res)
-})
-wechat.fetchTicket().then((res) => {
-  console.log(res)
-})
-
-module.exports = wechat
+module.exports = Wechat

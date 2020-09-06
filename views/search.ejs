@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>search</title>
+    <script src="http://res.wx.qq.com/open/js/jweixin-1.6.0.js"></script>
+    <script src="https://libs.cdnjs.net/jquery/1.10.0/jquery.js"></script>
+    <script>
+      wx.config({
+        debug: true, // 开启调试模式,调用的所有api的返回值会在客户端alert出来，若要查看传入的参数，可以在pc端打开，参数信息会通过log打出，仅在pc端时才会打印。
+        appId: '<%= appId %>', // 必填，公众号的唯一标识
+        timestamp: '<%= timestamp %>', // 必填，生成签名的时间戳
+        nonceStr: '<%= nonceStr %>', // 必填，生成签名的随机串
+        signature: '<%= signature %>', // 必填，签名
+        jsApiList: ['updateAppMessageShareData', 'updateTimelineShareData'], // 必填，需要使用的JS接口列表
+      })
+      wx.ready(function () {
+        //需在用户可能点击分享按钮前就先调用
+        wx.updateAppMessageShareData({
+          title: 'testdemo', // 分享标题
+          desc: '这是测试链接', // 分享描述
+          link: window.location.href, // 分享链接，该链接域名或路径必须与当前页面对应的公众号JS安全域名一致
+          imgUrl:
+            'https://mp.weixin.qq.com/debug/zh_CN/htmledition/images/bg/bg_logo1f2fc8.png', // 分享图标
+          success: function () {
+            // 设置成功
+          },
+        })
+      })
+
+      wx.ready(function () {
+        //需在用户可能点击分享按钮前就先调用
+        wx.updateTimelineShareData({
+          title: 'testdemo2', // 分享标题
+          link: window.location.href, // 分享链接，该链接域名或路径必须与当前页面对应的公众号JS安全域名一致
+          imgUrl:
+            'https://mp.weixin.qq.com/debug/zh_CN/htmledition/images/bg/bg_logo1f2fc8.png', // 分享图标
+          success: function () {
+            // 设置成功
+          },
+        })
+      })
+
+      // $(document).ready(function () {
+      //   $.ajax(
+      //     {
+      //       url: '/api/getSdk?url=' + window.location.href,
+      //       method: 'get',
+      //     },
+      //     function (res) {
+      //       console.log(res)
+      //     }
+      //   )
+      // })
+    </script>
+  </head>
+  <body>
+    <h1>这是一个搜索页面</h1>
+  </body>
+</html>
