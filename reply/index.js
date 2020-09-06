@@ -16,8 +16,8 @@
 
 const sha1 = require('sha1')
 const config = require('../config')
-const reply = require('../wechat/reply')
-const template = require('../wechat/template')
+const reply = require('./reply')
+const template = require('./template')
 const {
   getUserDataAsync,
   parseXMLAsync,

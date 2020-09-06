@@ -59,7 +59,7 @@ class Wechat {
         const tokenInfo = res.data
         tokenInfo.expires_in =
           Date.now() + (tokenInfo.expires_in - 5 * 60) * 1000
-        console.log('tokenInfo ===>', tokenInfo)
+        // console.log('tokenInfo ===>', tokenInfo)
         resolve(tokenInfo)
       } catch (err) {
         console.log(err)
@@ -118,29 +118,16 @@ class Wechat {
   /**
    * 创建公众号菜单
    */
-  createMenu() {
-    return new Promise(async (resolve, reject) => {
-      const data = await this.fetchAccessToken()
-      if (!data.access_token) return
-      const url = `${api.createMenu}?access_token=${data.access_token}`
-      const meunStr = qs.stringify(menu)
-      try {
-        const res = await axios({
-          url,
-          method: 'post',
-          data: menu,
-        })
-        console.log(res.data)
-        if (res.errcode === 0) {
-          resolve(res)
-        } else {
-          reject(res)
-        }
-      } catch (err) {
-        console.log(err)
-        reject(err)
-      }
+  async createMenu() {
+    const data = await this.fetchAccessToken()
+    if (!data.access_token) return
+    const url = `${api.createMenu}?access_token=${data.access_token}`
+    const res = await axios({
+      url,
+      method: 'post',
+      data: menu,
     })
+    console.log(res.data)
   }
 
   /**
@@ -279,5 +266,9 @@ class Wechat {
     })
   }
 }
+
+// 要更新menu的时候，再执行该脚本
+// var wechatInstance = new Wechat()
+// wechatInstance.createMenu()
 
 module.exports = Wechat
