@@ -30,6 +30,7 @@ module.exports = async () => {
       const liDom = $list[i];
 
       result.push({
+        doubanId: +$(liDom).attr('id'),
         title: $(liDom).data('title'),
         score: $(liDom).data('score'),
         star: $(liDom).data('star'),
@@ -46,10 +47,8 @@ module.exports = async () => {
 
     return result;
   });
-  console.log(results);
   for (let i = 0; i < results.length; i++) {
     let item = results[i];
-    console.log(item);
     await page.goto(item.href, {
       waitUntil: 'networkidle2',
     });
@@ -61,7 +60,10 @@ module.exports = async () => {
       for (let i = 0; i < $span.length; i++) {
         genre.push($span[i].innerText);
       }
-      const summary = $('#link-report').find('span[property*=summary]').text();
+      const summary = $('#link-report')
+        .find('span[property*=summary]')
+        .text()
+        .replace(/\s+/g, '');
 
       return {
         genre,
@@ -77,4 +79,5 @@ module.exports = async () => {
   await page.screenshot({ path: 'example.png' });
 
   await browser.close();
+  return results;
 };
